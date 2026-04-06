@@ -1,81 +1,38 @@
 [build-system]
-requires      = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=68"]
 build-backend = "setuptools.backends.legacy:build"
 
 [project]
-name        = "clickstream-stream-processor"
-version     = "1.0.0"
-description = "Real-time clickstream analytics pipeline — stream processor Lambda"
+name = "clickstream-pipeline"
+version = "0.1.0"
+description = "Real-time clickstream analytics — Lambda Architecture on AWS"
 requires-python = ">=3.11"
-dependencies = [
-    "pydantic>=2.7,<3",
-    "aws-xray-sdk>=2.14,<3",
-    "boto3>=1.34,<2",
-]
+dependencies = []   # Runtime deps managed by requirements.txt
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=8",
-    "pytest-cov>=5",
-    "moto[s3,kinesis]>=5",
-    "ruff>=0.4",
-    "mypy>=1.10",
-    "boto3-stubs[s3,kinesis]>=1.34",
+[tool.pytest.ini_options]
+testpaths        = ["tests"]
+python_files     = ["test_*.py"]
+python_classes   = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "integration: marks tests requiring a live AWS dev environment (deselect with -m 'not integration')",
 ]
+addopts = "-v --tb=short -m 'not integration'"
 
-# ── Ruff ──────────────────────────────────────────────────────────────────────
 [tool.ruff]
 line-length    = 100
 target-version = "py312"
 src            = ["src", "tests"]
 
 [tool.ruff.lint]
-select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # pyflakes
-    "I",   # isort
-    "B",   # flake8-bugbear
-    "C4",  # flake8-comprehensions
-    "UP",  # pyupgrade
-    "N",   # pep8-naming
-    "SIM", # flake8-simplify
-    "ANN", # type annotations
-]
-ignore = [
-    "ANN101",  # self type annotation not needed
-    "ANN102",  # cls type annotation not needed
-    "ANN401",  # Any allowed in properties dict
-]
+select  = ["E", "W", "F", "I", "B", "UP"]
+ignore  = ["E501", "B008"]
 
-[tool.ruff.lint.isort]
-known-first-party = ["stream_processor"]
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
 
-# ── Mypy ──────────────────────────────────────────────────────────────────────
 [tool.mypy]
 python_version         = "3.12"
-strict                 = true
+warn_return_any        = true
+warn_unused_configs    = true
 ignore_missing_imports = true
-exclude                = ["tests/"]
-
-# ── Pytest ────────────────────────────────────────────────────────────────────
-[tool.pytest.ini_options]
-testpaths      = ["tests"]
-pythonpath     = ["."]
-addopts        = "-v --tb=short"
-log_cli        = true
-log_cli_level  = "WARNING"
-
-# ── Coverage ──────────────────────────────────────────────────────────────────
-[tool.coverage.run]
-source   = ["src"]
-omit     = ["tests/*", "**/__init__.py"]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "if TYPE_CHECKING:",
-    "raise NotImplementedError",
-]
-show_missing = true
-fail_under   = 90

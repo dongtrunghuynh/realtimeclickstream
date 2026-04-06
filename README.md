@@ -1,119 +1,95 @@
-# 🖱️ Real-Time Clickstream Pipeline — Streaming Analytics
+# Real-Time Clickstream Pipeline — Streaming Analytics
 
-> **Difficulty:** Intermediate &nbsp;|&nbsp; **Estimated Cost:** $0 (all open source) &nbsp;|&nbsp; **Timeline:** 4–5 weeks part-time &nbsp;|&nbsp; **Architecture Pattern:** Streaming + Lambda Architecture
-
----
-
-## Overview
-
-Build a real-time clickstream analytics pipeline that captures simulated user browsing events, streams them through **Apache Kafka**, processes them with **Apache Flink** (or Spark Structured Streaming) for sessionization, and serves both a **real-time dashboard** (sub-minute latency) and a **batch-reconciled historical view**.
-
-This project forces the team to think about event ordering, late-arriving data, and the tradeoffs between speed and correctness — the core challenges in any streaming system.
+A production-grade **Lambda Architecture** pipeline built on AWS. Ingests e-commerce
+clickstream events in real-time via Kinesis + Lambda, batch-reconciles sessions nightly
+with Spark on EMR Serverless, and quantifies the accuracy/latency tradeoff between the
+speed and batch layers.
 
 ---
 
-## Dataset
+## Architecture
 
-**[REES46 E-Commerce Behaviour Dataset](https://www.kaggle.com/) (~20M events)**
+```
+[Python Event Simulator (REES46 dataset)]
+        │  configurable replay rate + intentional late arrivals
+        ▼
+[Kinesis Data Streams — on-demand]
+        │
+        ├──► [Lambda — Sessionizer]
+        │          30-min inactivity window
+        │          Running cart totals
+        │          ▼
+        │    [DynamoDB — Speed Layer]    ←── Sub-minute latency reads
+        │
+        └──► [S3 — Raw Events (Parquet)]
+                    │
+             [EMR Serverless — Spark]
+                  Nightly reconciliation
+                  Late-arrival stitching
+                    │
+             [S3 — Corrected Sessions]  ←── Batch Layer
+                    │
+             [Athena — Comparison Views]
+                    │
+        [Accuracy/Latency Dashboard]
+```
 
-Contains `view`, `add-to-cart`, and `purchase` events with:
-- Timestamps & session IDs
-- Product metadata
-- Category hierarchy
+## Stack
 
-> Your team will write a Python event generator that replays these events into Kafka at configurable throughput.
+| Layer | Service |
+|-------|---------|
+| Ingestion | Amazon Kinesis Data Streams (on-demand) |
+| Speed processing | AWS Lambda (Python 3.12) |
+| Speed serving | Amazon DynamoDB (on-demand) |
+| Batch processing | EMR Serverless (Spark 3.5) |
+| Batch storage | Amazon S3 + Apache Parquet |
+| Batch query | Amazon Athena (Iceberg) |
+| Infrastructure | Terraform (modules + dev/prod workspaces) |
 
----
+## Quick Start
 
-## Tech Stack
+```bash
+# Prerequisites: AWS CLI configured, Terraform ≥ 1.7, Python ≥ 3.11, Java 11
 
-| Tool | Role |
-|------|------|
-| **Apache Kafka** (+ KRaft) | Event ingestion and streaming backbone |
-| **Apache Flink** (or Spark Structured Streaming) | Real-time sessionization, tumbling windows, watermarks for late data |
-| **Apache Spark** (standalone) | Batch re-processing for historical accuracy and session stitching |
-| **Redis** | Low-latency serving layer for real-time session state |
-| **MinIO + Trino** | Batch query layer for historical analysis |
-| **Ansible** (or Docker Compose) | Infrastructure as code — reproducible, reviewable service definitions |
+git clone <repo>
+cd clickstream-pipeline
+pip install -r requirements.txt
 
----
+cd terraform
+terraform init
+terraform workspace new dev
+terraform apply -var-file=environments/dev.tfvars
+
+cd ..
+python src/event_simulator/simulator.py --rate 100 --duration 300
+```
+
+See [`docs/setup-guide.md`](docs/setup-guide.md) for the full walkthrough.
 
 ## Key Deliverables
 
-1. **Python Event Simulator** — Replays the REES46 dataset into Kafka with configurable event rates, including intentional late-arriving and out-of-order events.
+1. **Event Simulator** — Replays REES46 dataset into Kinesis with configurable rate + late arrivals
+2. **Lambda Sessionizer** — 30-min inactivity window, cart totals, DynamoDB writes
+3. **Spark Batch Reconciler** — Nightly session stitching + late-arrival restatements
+4. **Athena Views** — Side-by-side speed vs batch comparison
+5. **Accuracy Dashboard** — Quantified latency/accuracy tradeoff (the ⭐ standout piece)
 
-2. **Flink / Spark Streaming Jobs** — Perform sessionization (30-minute inactivity window), compute running cart totals using stateful processing, and write session state to Redis.
+## Estimated Cost
 
-3. **Batch Spark Job** — Reconciles sessions nightly, handles late arrivals, and writes corrected session data back to MinIO as Parquet.
+| Resource | Cost |
+|----------|------|
+| Kinesis on-demand | ~$0.08/hr when active |
+| Lambda | Free tier (1M requests/month) |
+| EMR Serverless | Pennies per Spark job |
+| DynamoDB | Free tier (<1KB writes) |
+| **Total** | **~$5–12/month** |
 
-4. **Trino Views** — Compare real-time (Redis) vs. batch-reconciled (MinIO/Parquet) metrics to demonstrate the accuracy/latency tradeoff.
-
-5. **Complete Docker Compose Stack** — With Ansible playbooks for configuration; a single `docker compose down -v` tears everything down cleanly.
-
----
-
-## ⭐ Standout Move — Accuracy/Latency Tradeoff Dashboard
-
-After running the pipeline for a simulated day, query both the real-time Redis path and the batch-reconciled Trino path, and present a **side-by-side comparison**:
-
-- How many sessions did the real-time path get wrong?
-- What was the average revenue discrepancy?
-- What percentage of late-arriving events caused restatements?
-
-This kind of rigorous quantitative analysis demonstrates you understand **why** Lambda Architecture exists — not just how to build it.
-
----
-
-## Infrastructure
-
-| Service | RAM |
-|---------|-----|
-| Kafka (KRaft mode, single broker) | ~512 MB |
-| Flink JobManager + TaskManager | ~1.5 GB |
-| Redis | ~256 MB |
-| Spark standalone | ~1 GB |
-| **Total** | **~3.5 GB** |
-
-> All services use official Docker images with no licensing costs.
-
----
-
-## Skills Unlocked
-
-- Kafka producer/consumer patterns
-- Flink/Spark Streaming stateful processing
-- Sessionization
-- Redis caching and serving
-- Trino federated queries
-- Ansible configuration management
-- Lambda Architecture tradeoffs
-
----
-
-## Getting Started
-
-```bash
-# Clone the repo
-git clone https://github.com/dongtrunghuynh/realtimeclickstream
-cd realtimeclickstream
-
-# Start all services
-docker compose up -d
-
-# Tear everything down (including volumes)
-docker compose down -v
-```
-
----
+> **Always run `terraform destroy` in dev workspace at end of day.**
 
 ## Project Structure
 
-```
-realtimeclickstream/
-├── simulator/          # Python event generator
-├── flink-jobs/         # Sessionization & streaming jobs
-├── spark-jobs/         # Batch reconciliation jobs
-├── trino-views/        # SQL views for accuracy/latency comparison
-├── infra/              # Docker Compose + Ansible playbooks
-└── dashboard/          # Accuracy/latency tradeoff visualization
-```
+See [`docs/architecture.md`](docs/architecture.md) for full detail.
+
+## License
+
+MIT

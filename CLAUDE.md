@@ -1,265 +1,165 @@
-# CLAUDE.md — Clickstream Analytics Pipeline
+# CLAUDE.md — Real-Time Clickstream Pipeline
 
-This file is the single source of truth for Claude when reviewing code, triaging issues,
-answering PR questions, and assisting with development. Read this fully before any action.
-
----
-
-## 🎯 What This Project Is
-
-A **production-grade, real-time clickstream analytics pipeline** built on AWS. It ingests
-user interaction events (page views, clicks, purchases, searches) from web and mobile clients,
-processes them in near-real-time, and delivers structured, queryable data to a partitioned
-data lake — enabling downstream analytics, dashboards, and ML feature engineering.
-
-**Primary stakeholders:** Data Engineers, Analytics Engineers, and Data Scientists.  
-**Business goal:** Reduce time-to-insight on user behaviour from hours (batch ETL) to minutes.
+> This file gives Claude (and any AI assistant) full context on this project so it can
+> provide accurate, relevant help without re-explaining the stack every session.
 
 ---
 
-## 🏗️ Architecture
+## Project Summary
+
+A **Lambda Architecture** streaming analytics pipeline that ingests e-commerce clickstream
+events, processes them in real-time via AWS Lambda + Kinesis, batch-reconciles them
+nightly with Spark on EMR Serverless, and surfaces an accuracy/latency tradeoff dashboard.
+
+**Dataset:** REES46 E-Commerce Behaviour Dataset (~20M events, Kaggle)
+**Goal:** Demonstrate you understand *why* Lambda Architecture exists, not just how to build it.
+
+---
+
+## Architecture Overview
 
 ```
-Clients (web/mobile)
-        │  HTTPS POST /events
-        ▼
-  [API Gateway]  ──── rate limiting, auth, schema validation
+[Python Event Simulator]
         │
+        ▼ (Kinesis Data Streams — on-demand)
+[AWS Lambda — Sessionizer]
+        │  5-second tumbling windows
+        │  30-min inactivity session boundary
         ▼
-[Kinesis Data Streams]  ──── sharded by user_id for ordering guarantees
-        │  trigger (batch)
-        ▼
-  [AWS Lambda]           ──── decode → validate → enrich → transform
-   stream_processor       ──── writes raw + processed in parallel
+[DynamoDB — Real-Time Session State]       ←── Speed Layer
         │
-   ┌────┴────┐
-   ▼         ▼
-[S3 Raw]  [S3 Processed]   ──── Hive-partitioned NDJSON (processed)
-               │
-               ▼
-       [AWS Glue Crawler]   ──── auto-discovers schema, updates catalog daily
-               │
-               ▼
-       [Glue Data Catalog]  ──── single source of schema truth
-               │
-               ▼
-          [Athena]          ──── SQL query layer for analysts & dashboards
-               │
-               ▼
-        [QuickSight / BI]   ──── business dashboards (out of scope for this repo)
-```
-
-**Dead-letter path:** Failed Lambda batches → SQS DLQ → CloudWatch alarm → PagerDuty.
-
----
-
-## 📁 Repository Layout
-
-```
-.
-├── CLAUDE.md                    ← you are here
-├── README.md                    ← public-facing docs
-├── Makefile                     ← all dev tasks (make help)
-├── pyproject.toml               ← Python tooling config
-├── terraform.tfvars.example     ← copy to terraform.tfvars for local work
-│
-├── .github/
-│   ├── CLAUDE.md                ← GitHub-workflow-specific Claude context
-│   ├── CODEOWNERS               ← auto-assign reviewers
-│   ├── PULL_REQUEST_TEMPLATE.md
-│   ├── ISSUE_TEMPLATE/
-│   │   ├── bug_report.yml
-│   │   ├── feature_request.yml
-│   │   └── data_quality.yml
-│   └── workflows/
-│       ├── ci-python.yml        ← lint, type-check, test on every push
-│       ├── terraform-plan.yml   ← plan on every PR
-│       ├── terraform-apply.yml  ← apply on merge to main
-│       ├── claude-pr-review.yml ← AI code review on every PR
-│       ├── claude-issue-triage.yml ← auto-label & summarise new issues
-│       └── claude-pr-comment.yml   ← answer @claude questions in PR comments
-│
-├── infra/                       ← all Terraform
-│   ├── providers.tf
-│   ├── variables.tf
-│   ├── main.tf
-│   ├── outputs.tf
-│   ├── environments/
-│   │   ├── dev.tfvars
-│   │   ├── staging.tfvars
-│   │   └── prod.tfvars
-│   └── modules/
-│       ├── kinesis/             ← data stream + enhanced fan-out
-│       ├── lambda/              ← function + event source mapping
-│       ├── s3/                  ← raw + processed buckets
-│       ├── glue/                ← crawler + catalog database
-│       ├── iam/                 ← least-privilege roles
-│       └── monitoring/          ← CloudWatch dashboards + alarms + DLQ
-│
-└── src/
-    └── stream_processor/
-        ├── handler.py           ← Lambda entry point
-        ├── models.py            ← Pydantic event schemas
-        ├── transformer.py       ← enrichment & normalisation logic
-        └── requirements.txt
+        │                    [S3 — Raw Events (Parquet)]
+        │                           │
+        │                    [EMR Serverless — Spark Batch]
+        │                    nightly reconciliation
+        │                           │
+        │                    [S3 — Corrected Sessions]   ←── Batch Layer
+        │                           │
+        └──────────────────────────►▼
+                         [Athena Views — Accuracy/Latency Dashboard]
 ```
 
 ---
 
-## 🧠 Event Schema
+## Skills Being Built
 
-Every clickstream event MUST conform to this shape (enforced by Pydantic in `models.py`):
+| Skill | Where |
+|-------|-------|
+| Kinesis producer/consumer patterns | `src/event_simulator/`, `src/lambda/sessionizer/` |
+| Lambda event processing | `src/lambda/` |
+| Spark sessionization | `src/spark/` |
+| DynamoDB single-table design | `terraform/modules/dynamodb/`, `src/lambda/shared/` |
+| Terraform modules + workspaces | `terraform/` |
+| Lambda Architecture tradeoffs | `src/dashboard/`, `athena/views/` |
 
-```json
-{
-  "event_id":    "uuid4",
-  "event_type":  "page_view | click | purchase | search | session_start | session_end",
-  "session_id":  "uuid4",
-  "user_id":     "string (anonymous or authenticated)",
-  "anonymous_id":"string (pre-auth identifier)",
-  "timestamp":   "ISO-8601 UTC",
-  "page": {
-    "url":      "string",
-    "referrer": "string | null",
-    "title":    "string | null"
-  },
-  "device": {
-    "type":       "desktop | mobile | tablet",
-    "os":         "string",
-    "browser":    "string",
-    "user_agent": "string"
-  },
-  "geo": {
-    "country_code": "ISO 3166-1 alpha-2 | null",
-    "region":       "string | null",
-    "city":         "string | null"
-  },
-  "properties": {}
-}
+---
+
+## Repo Layout (Quick Reference)
+
+```
+clickstream-pipeline/
+├── CLAUDE.md               ← You are here
+├── SKILL.md                ← Git/PR/code-review workflow guide
+├── README.md               ← Project intro for humans/employers
+├── .github/                ← PR templates, CI workflows, CODEOWNERS
+├── docs/                   ← Architecture deep-dives, setup guide, step-by-step
+├── terraform/              ← All IaC — modules + dev/prod workspaces
+├── src/
+│   ├── event_simulator/    ← Python: replays REES46 into Kinesis
+│   ├── lambda/             ← Lambda handlers + shared utilities
+│   ├── spark/              ← EMR Serverless Spark jobs
+│   └── dashboard/          ← Accuracy/latency comparison scripts
+├── athena/                 ← SQL views for speed vs batch layer comparison
+├── data/schemas/           ← JSON schemas for event validation
+├── tests/                  ← Unit + integration tests
+└── scripts/                ← Shell helpers (setup, teardown, run)
 ```
 
-**S3 output partition scheme:**
-`s3://<bucket>/processed/event_type=<type>/year=<Y>/month=<M>/day=<D>/<uuid>.ndjson`
+---
+
+## Key Design Decisions (Ask Claude About These)
+
+1. **Session boundary:** 30-minute inactivity window (industry standard). If a user is
+   idle >30 min, the next event starts a new session.
+
+2. **Late-arrival handling:** Events arriving >5 minutes late are flagged in the raw
+   Kinesis record. Lambda ignores them for real-time state but persists them to S3.
+   Spark picks them up during nightly reconciliation.
+
+3. **DynamoDB single-table design:** Session ID is the partition key. A `TTL` attribute
+   auto-expires hot session records after 2 hours, keeping costs near free tier.
+
+4. **Terraform workspaces:** `dev` and `prod`. Always `terraform workspace select dev`
+   before experimenting. `terraform destroy` in dev = $0.
+
+5. **Cost guard:** Kinesis on-demand turns off automatically when no records are produced.
+   EMR Serverless charges only for vCPU/memory during job execution — pennies per run.
 
 ---
 
-## 🛠️ Tech Stack
-
-| Layer | Technology | Why |
-|---|---|---|
-| Ingestion | Kinesis Data Streams | Ordered, replayable, exactly-once semantics |
-| Compute | Python 3.12 Lambda | Serverless, auto-scales with shard count |
-| Schema | Pydantic v2 | Fast validation, clear error messages |
-| Storage | S3 + Parquet-compatible NDJSON | Cost-effective, Athena-queryable |
-| Catalog | AWS Glue | Schema discovery, partition management |
-| Query | Amazon Athena | Serverless SQL, pay-per-query |
-| IaC | Terraform ≥ 1.7 | Reproducible, state-managed infra |
-| CI/CD | GitHub Actions | Native integration, matrix testing |
-| AI | Claude via Anthropic API | PR review, issue triage, Q&A |
-| Observability | CloudWatch + X-Ray | Metrics, traces, structured logs |
-
----
-
-## ✅ Coding Standards
-
-### Python
-- **Style:** PEP 8, enforced by `ruff` (line length 100)
-- **Types:** All functions must have type annotations. `mypy --strict` must pass.
-- **Validation:** Use Pydantic models — never `dict` access without validation
-- **Error handling:** Specific exceptions, never bare `except`. Log before re-raising.
-- **Logging:** Structured JSON only. Use `logger.info("msg", extra={...})`. No f-strings in log calls.
-- **Tests:** ≥90% coverage required. Unit tests mock AWS. Integration tests use `moto`.
-- **Imports:** stdlib → third-party → local. Separated by blank lines.
-
-### Terraform
-- **Version:** `required_version = ">= 1.7"`
-- **Naming:** `<project>-<environment>-<resource-type>-<descriptor>` e.g. `clickstream-dev-kinesis-events`
-- **Variables:** Every variable must have `description` and `type`. Sensitive vars must have `sensitive = true`.
-- **Modules:** All reusable infra lives in `infra/modules/`. No inline resource blocks in `main.tf`.
-- **Outputs:** Every module must expose `arn`, `id`, and `name` for every major resource.
-- **State:** Remote state in S3 + DynamoDB lock. Never commit `.tfstate`.
-
-### Git
-- **Branches:** `feat/`, `fix/`, `chore/`, `docs/` prefixes
-- **Commits:** Conventional Commits format: `feat(lambda): add geo-enrichment step`
-- **PRs:** Fill the PR template fully. Link the related issue. One concern per PR.
-
----
-
-## 🔍 What Claude Should Focus on During PR Reviews
-
-### Critical (block merge)
-- Any hardcoded AWS credentials, secrets, or API keys
-- Missing IAM least-privilege (e.g. `*` actions or resources)
-- Missing error handling in Lambda (uncaught exceptions kill the batch)
-- Schema validation bypassed or weakened
-- S3 bucket missing public access block or TLS-only policy
-- Tests missing for new business logic
-- Terraform resources missing tags
-
-### Important (request changes)
-- Missing type annotations
-- Bare `except` clauses
-- CloudWatch alarms not added for new Lambda functions
-- New variables without descriptions
-- Functions longer than 50 lines (suggest splitting)
-- Missing docstrings on public functions
-
-### Suggestions (non-blocking)
-- Performance improvements (e.g. batch S3 puts vs individual)
-- Cost optimisation opportunities
-- Readability improvements
-- Additional test cases for edge cases
-
----
-
-## 🏷️ Issue Labels (for triage)
-
-| Label | When to apply |
-|---|---|
-| `bug` | Something broken in production or tests |
-| `data-quality` | Events dropped, schema violations, bad output |
-| `infrastructure` | Terraform / AWS resource changes |
-| `lambda` | Stream processor code changes |
-| `pipeline` | End-to-end data flow issues |
-| `security` | IAM, encryption, access control |
-| `performance` | Latency, cost, throughput |
-| `documentation` | README, CLAUDE.md, docstrings |
-| `good-first-issue` | Small, well-defined task for new contributors |
-| `priority: high` | Impacts data freshness or correctness in prod |
-| `priority: low` | Nice-to-have, no production impact |
-
----
-
-## 🌍 Environments
-
-| Env | AWS Account | Kinesis Mode | Lambda Concurrency | Data Retention |
-|---|---|---|---|---|
-| dev | shared-dev | PROVISIONED (1 shard) | unreserved | 7 days S3 |
-| staging | shared-staging | PROVISIONED (2 shards) | 20 | 30 days S3 |
-| prod | prod-dedicated | ON_DEMAND | 100 | 365 days S3 |
-
----
-
-## 🚀 Common Tasks
+## Environment Variables (Never Commit These)
 
 ```bash
-make help           # all available commands
-make install        # install Python deps
-make test           # run tests with coverage
-make build          # package Lambda zip
-make tf-plan ENV=dev        # plan dev changes
-make tf-apply ENV=dev       # apply dev changes
-make deploy-dev             # full build + deploy to dev
+AWS_REGION=us-east-1
+AWS_ACCOUNT_ID=<your-account-id>
+KINESIS_STREAM_NAME=clickstream-events-dev
+DYNAMODB_TABLE_NAME=clickstream-sessions-dev
+S3_BUCKET=clickstream-raw-<account-id>-dev
+EMR_APPLICATION_ID=<from terraform output>
+```
+
+Use `.env` files locally (already in `.gitignore`). Use AWS SSM Parameter Store or
+Secrets Manager for deployed values.
+
+---
+
+## How to Ask Claude for Help
+
+**Good prompts in this project:**
+- "Review this Lambda sessionizer for edge cases in session boundary detection"
+- "Help me write a Spark job that partitions late-arrival events by hour"
+- "Write a Terraform module for DynamoDB with TTL and on-demand billing"
+- "Explain why my Kinesis shard iterator might be returning empty records"
+- "Help me write an Athena view that compares real-time vs batch session counts"
+
+**Include context when asking:**
+- Paste the relevant function/module
+- Mention which workspace (dev/prod)
+- Mention the event type (view, cart, purchase)
+
+---
+
+## Common Gotchas
+
+| Problem | Cause | Fix |
+|---------|-------|-----|
+| Lambda timeout | Kinesis batch too large | Reduce `BisectBatchOnFunctionError`, cap batch size at 100 |
+| DynamoDB throttling | Burst writes | Switch to on-demand billing mode |
+| EMR job fails silently | Missing IAM role permissions | Check CloudWatch Logs under `/aws/emr-serverless/` |
+| Out-of-order events in Lambda | Kinesis ordering per shard | Use `ApproximateArrivalTimestamp` not `event_time` for windowing |
+| Athena slow queries | No partitioning on S3 | Ensure Spark writes with `partitionBy("year","month","day","hour")` |
+
+---
+
+## Teardown (Critical — Cost Control)
+
+```bash
+# Always destroy dev resources when done for the day
+cd terraform
+terraform workspace select dev
+terraform destroy -var-file=environments/dev.tfvars
+
+# Verify $0 cost
+aws kinesis list-streams
+aws dynamodb list-tables
 ```
 
 ---
 
-## ⚠️ Known Constraints / Gotchas
+## References
 
-1. **Kinesis ordering:** Records are ordered per shard. Multi-shard consumers must not assume global order.
-2. **Lambda retries:** The event source mapping retries on error. Always return `batchItemFailures` for partial failures — never raise an unhandled exception unless the whole batch should retry.
-3. **Glue crawler lag:** Schema changes appear in Athena only after the next crawler run (~daily). For urgent schema changes, trigger the crawler manually or via Lambda.
-4. **S3 eventual consistency:** S3 is now strongly consistent for new objects, but Athena partition projection requires the Glue catalog to be current.
-5. **Cold starts:** Lambda cold starts are ~800ms on first invocation. Kinesis batching absorbs this. Do not optimise prematurely.
-6. **Cost:** Kinesis charges per shard-hour + PUT payload unit. ON_DEMAND mode is ~3× cheaper for variable throughput. Review monthly.
+- [REES46 Dataset (Kaggle)](https://www.kaggle.com/datasets/mkechinov/ecommerce-behavior-data-from-multi-category-store)
+- [Kinesis Developer Guide](https://docs.aws.amazon.com/streams/latest/dev/introduction.html)
+- [EMR Serverless Docs](https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/getting-started.html)
+- [Lambda Architecture (Martin Fowler)](https://martinfowler.com/bliki/LambdaArchitecture.html)
+- [DynamoDB Single-Table Design](https://www.alexdebrie.com/posts/dynamodb-single-table/)
