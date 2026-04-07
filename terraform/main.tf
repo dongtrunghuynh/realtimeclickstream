@@ -18,14 +18,6 @@ terraform {
       version = "~> 5.0"
     }
   }
-
-  backend "s3" {
-    # Fill in your Terraform state bucket (created manually — see docs/setup-guide.md)
-    # bucket  = "clickstream-tfstate-<your-account-id>"
-    # key     = "clickstream-pipeline/terraform.tfstate"
-    # region  = "us-east-1"
-    # encrypt = true
-  }
 }
 
 provider "aws" {

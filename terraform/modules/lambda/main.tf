@@ -107,7 +107,6 @@ resource "aws_lambda_function" "sessionizer" {
     variables = {
       DYNAMODB_TABLE_NAME = var.dynamodb_table_name
       S3_BUCKET           = var.s3_bucket
-      AWS_REGION          = var.aws_region
       LOG_LEVEL           = var.env == "dev" ? "DEBUG" : "INFO"
       DLQ_URL             = aws_sqs_queue.lambda_dlq.url
     }
@@ -157,7 +156,3 @@ output "function_arn" {
   value = aws_lambda_function.sessionizer.arn
 }
 
-output "dlq_url" {
-  value       = aws_sqs_queue.lambda_dlq.url
-  description = "Set as DLQ_URL to use dlq_handler.py"
-}

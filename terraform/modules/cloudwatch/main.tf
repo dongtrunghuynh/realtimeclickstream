@@ -12,10 +12,10 @@
 ###############################################################################
 
 locals {
-  dashboard_name     = "clickstream-pipeline-${var.env}"
-  lambda_fn          = var.lambda_function_name
-  kinesis_stream     = var.kinesis_stream_name
-  dynamodb_table     = var.dynamodb_table_name
+  dashboard_name = "clickstream-pipeline-${var.env}"
+  lambda_fn      = var.lambda_function_name
+  kinesis_stream = var.kinesis_stream_name
+  dynamodb_table = var.dynamodb_table_name
 }
 
 resource "aws_cloudwatch_dashboard" "main" {
@@ -27,84 +27,132 @@ resource "aws_cloudwatch_dashboard" "main" {
       # ── Row 1 title ───────────────────────────────────────────────────────
       {
         type   = "text"
-        x      = 0; y = 0; width = 24; height = 1
+        x      = 0
+        y      = 0
+        width  = 24
+        height = 1
         properties = { markdown = "## Lambda Sessionizer" }
       },
 
       # Lambda — Invocations
       {
-        type = "metric"; x = 0; y = 1; width = 6; height = 6
+        type   = "metric"
+        x      = 0
+        y      = 1
+        width  = 6
+        height = 6
         properties = {
           title   = "Invocations"
+          region  = var.aws_region
           metrics = [["AWS/Lambda", "Invocations", "FunctionName", local.lambda_fn, { stat = "Sum", period = 60 }]]
-          view    = "timeSeries"; stacked = false
-          period  = 60; stat = "Sum"
+          view    = "timeSeries"
+          stacked = false
+          period  = 60
+          stat    = "Sum"
         }
       },
 
       # Lambda — Errors
       {
-        type = "metric"; x = 6; y = 1; width = 6; height = 6
+        type   = "metric"
+        x      = 6
+        y      = 1
+        width  = 6
+        height = 6
         properties = {
           title   = "Errors"
+          region  = var.aws_region
           metrics = [
-            ["AWS/Lambda", "Errors",   "FunctionName", local.lambda_fn, { stat = "Sum",   color = "#d62728" }],
-            ["AWS/Lambda", "Throttles","FunctionName", local.lambda_fn, { stat = "Sum",   color = "#ff7f0e" }],
+            ["AWS/Lambda", "Errors",    "FunctionName", local.lambda_fn, { stat = "Sum", color = "#d62728" }],
+            ["AWS/Lambda", "Throttles", "FunctionName", local.lambda_fn, { stat = "Sum", color = "#ff7f0e" }],
           ]
-          view    = "timeSeries"; stacked = false; period = 60
+          view    = "timeSeries"
+          stacked = false
+          period  = 60
         }
       },
 
       # Lambda — Duration p50/p99
       {
-        type = "metric"; x = 12; y = 1; width = 6; height = 6
+        type   = "metric"
+        x      = 12
+        y      = 1
+        width  = 6
+        height = 6
         properties = {
           title   = "Duration (ms)"
+          region  = var.aws_region
           metrics = [
             ["AWS/Lambda", "Duration", "FunctionName", local.lambda_fn, { stat = "p50", label = "p50" }],
             ["AWS/Lambda", "Duration", "FunctionName", local.lambda_fn, { stat = "p99", label = "p99", color = "#d62728" }],
           ]
-          view    = "timeSeries"; stacked = false; period = 60
+          view    = "timeSeries"
+          stacked = false
+          period  = 60
         }
       },
 
       # Lambda — Concurrent executions
       {
-        type = "metric"; x = 18; y = 1; width = 6; height = 6
+        type   = "metric"
+        x      = 18
+        y      = 1
+        width  = 6
+        height = 6
         properties = {
           title   = "Concurrent Executions"
+          region  = var.aws_region
           metrics = [["AWS/Lambda", "ConcurrentExecutions", "FunctionName", local.lambda_fn, { stat = "Maximum" }]]
-          view    = "timeSeries"; stacked = false; period = 60
+          view    = "timeSeries"
+          stacked = false
+          period  = 60
         }
       },
 
       # ── Row 2 title ───────────────────────────────────────────────────────
       {
         type   = "text"
-        x      = 0; y = 7; width = 24; height = 1
+        x      = 0
+        y      = 7
+        width  = 24
+        height = 1
         properties = { markdown = "## Kinesis Data Stream — Iterator Age is the key latency metric" }
       },
 
       # Kinesis — Incoming Records
       {
-        type = "metric"; x = 0; y = 8; width = 8; height = 6
+        type   = "metric"
+        x      = 0
+        y      = 8
+        width  = 8
+        height = 6
         properties = {
           title   = "Incoming Records/sec"
+          region  = var.aws_region
           metrics = [["AWS/Kinesis", "IncomingRecords", "StreamName", local.kinesis_stream, { stat = "Sum", period = 60 }]]
-          view    = "timeSeries"; stacked = false; period = 60
+          view    = "timeSeries"
+          stacked = false
+          period  = 60
         }
       },
 
       # Kinesis — Iterator Age (latency between produce and consume)
       {
-        type = "metric"; x = 8; y = 8; width = 8; height = 6
+        type   = "metric"
+        x      = 8
+        y      = 8
+        width  = 8
+        height = 6
         properties = {
           title   = "GetRecords.IteratorAgeMilliseconds (Lambda lag)"
+          region  = var.aws_region
           metrics = [
             ["AWS/Kinesis", "GetRecords.IteratorAgeMilliseconds", "StreamName", local.kinesis_stream, { stat = "Maximum", color = "#d62728", label = "Max lag (ms)" }],
             ["AWS/Kinesis", "GetRecords.IteratorAgeMilliseconds", "StreamName", local.kinesis_stream, { stat = "Average", label = "Avg lag (ms)" }],
           ]
-          view    = "timeSeries"; stacked = false; period = 60
+          view    = "timeSeries"
+          stacked = false
+          period  = 60
           annotations = {
             horizontal = [{ value = 30000, label = "30s — acceptable", color = "#2ca02c" }]
           }
@@ -113,91 +161,146 @@ resource "aws_cloudwatch_dashboard" "main" {
 
       # Kinesis — Incoming Bytes
       {
-        type = "metric"; x = 16; y = 8; width = 8; height = 6
+        type   = "metric"
+        x      = 16
+        y      = 8
+        width  = 8
+        height = 6
         properties = {
           title   = "Incoming Bytes/sec"
+          region  = var.aws_region
           metrics = [["AWS/Kinesis", "IncomingBytes", "StreamName", local.kinesis_stream, { stat = "Sum", period = 60 }]]
-          view    = "timeSeries"; stacked = false; period = 60
+          view    = "timeSeries"
+          stacked = false
+          period  = 60
         }
       },
 
       # ── Row 3 title ───────────────────────────────────────────────────────
       {
         type   = "text"
-        x      = 0; y = 14; width = 24; height = 1
+        x      = 0
+        y      = 14
+        width  = 24
+        height = 1
         properties = { markdown = "## DynamoDB — Session State (Speed Layer)" }
       },
 
       # DynamoDB — Write latency
       {
-        type = "metric"; x = 0; y = 15; width = 8; height = 6
+        type   = "metric"
+        x      = 0
+        y      = 15
+        width  = 8
+        height = 6
         properties = {
           title   = "Write Latency (ms)"
+          region  = var.aws_region
           metrics = [
             ["AWS/DynamoDB", "SuccessfulRequestLatency", "TableName", local.dynamodb_table, "Operation", "PutItem",    { stat = "p99", label = "PutItem p99" }],
             ["AWS/DynamoDB", "SuccessfulRequestLatency", "TableName", local.dynamodb_table, "Operation", "UpdateItem", { stat = "p99", label = "UpdateItem p99" }],
           ]
-          view    = "timeSeries"; stacked = false; period = 60
+          view    = "timeSeries"
+          stacked = false
+          period  = 60
         }
       },
 
       # DynamoDB — Throttled requests
       {
-        type = "metric"; x = 8; y = 15; width = 8; height = 6
+        type   = "metric"
+        x      = 8
+        y      = 15
+        width  = 8
+        height = 6
         properties = {
           title   = "Throttled Requests"
+          region  = var.aws_region
           metrics = [
-            ["AWS/DynamoDB", "ThrottledRequests", "TableName", local.dynamodb_table, "Operation", "PutItem",    { stat = "Sum", color = "#d62728" }],
-            ["AWS/DynamoDB", "ThrottledRequests", "TableName", local.dynamodb_table, "Operation", "GetItem",    { stat = "Sum", color = "#ff7f0e" }],
+            ["AWS/DynamoDB", "ThrottledRequests", "TableName", local.dynamodb_table, "Operation", "PutItem", { stat = "Sum", color = "#d62728" }],
+            ["AWS/DynamoDB", "ThrottledRequests", "TableName", local.dynamodb_table, "Operation", "GetItem", { stat = "Sum", color = "#ff7f0e" }],
           ]
-          view    = "timeSeries"; stacked = false; period = 60
+          view    = "timeSeries"
+          stacked = false
+          period  = 60
         }
       },
 
       # DynamoDB — System errors
       {
-        type = "metric"; x = 16; y = 15; width = 8; height = 6
+        type   = "metric"
+        x      = 16
+        y      = 15
+        width  = 8
+        height = 6
         properties = {
           title   = "System Errors"
+          region  = var.aws_region
           metrics = [["AWS/DynamoDB", "SystemErrors", "TableName", local.dynamodb_table, { stat = "Sum", color = "#d62728" }]]
-          view    = "timeSeries"; stacked = false; period = 60
+          view    = "timeSeries"
+          stacked = false
+          period  = 60
         }
       },
 
       # ── Row 4 title ───────────────────────────────────────────────────────
       {
         type   = "text"
-        x      = 0; y = 21; width = 24; height = 1
+        x      = 0
+        y      = 21
+        width  = 24
+        height = 1
         properties = { markdown = "## Simulator — Custom Metrics (published by src/event_simulator/metrics.py)" }
       },
 
       # Simulator — Throughput
       {
-        type = "metric"; x = 0; y = 22; width = 8; height = 6
+        type   = "metric"
+        x      = 0
+        y      = 22
+        width  = 8
+        height = 6
         properties = {
           title   = "Events Sent/sec"
+          region  = var.aws_region
           metrics = [["ClickstreamPipeline/Simulator", "ThroughputPerSecond", "StreamName", local.kinesis_stream, { stat = "Average" }]]
-          view    = "timeSeries"; stacked = false; period = 30
+          view    = "timeSeries"
+          stacked = false
+          period  = 30
         }
       },
 
       # Simulator — Late arrivals pending
       {
-        type = "metric"; x = 8; y = 22; width = 8; height = 6
+        type   = "metric"
+        x      = 8
+        y      = 22
+        width  = 8
+        height = 6
         properties = {
           title   = "Late Arrivals Pending (held by injector)"
+          region  = var.aws_region
           metrics = [["ClickstreamPipeline/Simulator", "LateArrivalsPending", "StreamName", local.kinesis_stream, { stat = "Maximum" }]]
-          view    = "timeSeries"; stacked = false; period = 30
+          view    = "timeSeries"
+          stacked = false
+          period  = 30
         }
       },
 
       # Simulator — Failed records
       {
-        type = "metric"; x = 16; y = 22; width = 8; height = 6
+        type   = "metric"
+        x      = 16
+        y      = 22
+        width  = 8
+        height = 6
         properties = {
           title   = "Failed Kinesis Records"
+          region  = var.aws_region
           metrics = [["ClickstreamPipeline/Simulator", "EventsFailedTotal", "StreamName", local.kinesis_stream, { stat = "Sum", color = "#d62728" }]]
-          view    = "timeSeries"; stacked = false; period = 60
+          view    = "timeSeries"
+          stacked = false
+          period  = 60
         }
       },
 
@@ -253,7 +356,7 @@ resource "aws_cloudwatch_metric_alarm" "kinesis_lag" {
   alarm_description   = "Lambda is >60s behind Kinesis — possible backlog"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 3
-  threshold           = 60000   # 60 seconds in ms
+  threshold           = 60000
   namespace           = "AWS/Kinesis"
   metric_name         = "GetRecords.IteratorAgeMilliseconds"
   dimensions          = { StreamName = local.kinesis_stream }
