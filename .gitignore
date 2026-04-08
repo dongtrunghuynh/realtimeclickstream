@@ -32,6 +32,10 @@ terraform/*.tfplan
 
 # Lambda build artifacts
 src/lambda/*.zip
+
+# AWS CLI installer — downloaded during setup, not part of the repo
+awscliv2.zip
+aws/
 src/lambda/sessionizer/package/
 
 # Test artifacts
