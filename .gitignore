@@ -10,6 +10,7 @@ build/
 .venv/
 venv/
 env/
+uv.lock
 
 # Environment / secrets — NEVER commit these
 .env
@@ -29,6 +30,7 @@ terraform/.terraform.lock.hcl
 terraform/terraform.tfstate
 terraform/terraform.tfstate.backup
 terraform/*.tfplan
+
 
 # Lambda build artifacts
 src/lambda/*.zip
