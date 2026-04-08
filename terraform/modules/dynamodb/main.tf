@@ -12,7 +12,7 @@
 
 resource "aws_dynamodb_table" "sessions" {
   name         = var.table_name
-  billing_mode = "PAY_PER_REQUEST"  # On-demand — free tier for <25GB + <200M requests/month
+  billing_mode = "PAY_PER_REQUEST" # On-demand — free tier for <25GB + <200M requests/month
   hash_key     = "session_id"
 
   attribute {

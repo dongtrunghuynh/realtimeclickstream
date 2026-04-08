@@ -33,8 +33,8 @@ provider "aws" {
 }
 
 locals {
-  env    = terraform.workspace  # "dev" or "prod"
-  suffix = "${local.env}"
+  env    = terraform.workspace # "dev" or "prod"
+  suffix = local.env
 }
 
 # ---------------------------------------------------------------------------
@@ -62,10 +62,10 @@ module "dynamodb" {
 # ---------------------------------------------------------------------------
 
 module "s3_athena" {
-  source      = "./modules/s3_athena"
-  account_id  = data.aws_caller_identity.current.account_id
-  env         = local.env
-  aws_region  = var.aws_region
+  source     = "./modules/s3_athena"
+  account_id = data.aws_caller_identity.current.account_id
+  env        = local.env
+  aws_region = var.aws_region
 }
 
 # ---------------------------------------------------------------------------
@@ -91,11 +91,11 @@ module "lambda" {
 # ---------------------------------------------------------------------------
 
 module "emr_serverless" {
-  source         = "./modules/emr_serverless"
-  env            = local.env
-  s3_bucket      = module.s3_athena.raw_bucket_name
-  s3_bucket_arn  = module.s3_athena.raw_bucket_arn
-  aws_region     = var.aws_region
+  source        = "./modules/emr_serverless"
+  env           = local.env
+  s3_bucket     = module.s3_athena.raw_bucket_name
+  s3_bucket_arn = module.s3_athena.raw_bucket_arn
+  aws_region    = var.aws_region
 }
 
 # ---------------------------------------------------------------------------

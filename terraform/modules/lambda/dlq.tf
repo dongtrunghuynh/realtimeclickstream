@@ -10,7 +10,7 @@
 
 resource "aws_sqs_queue" "lambda_dlq" {
   name                      = "clickstream-sessionizer-dlq-${var.env}"
-  message_retention_seconds = 86400 * 7   # 7 days — time to investigate failures
+  message_retention_seconds = 86400 * 7 # 7 days — time to investigate failures
 
   # Redrive from the DLQ back to processing (optional — manual for this project)
   # redrive_allow_policy = ...

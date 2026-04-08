@@ -26,7 +26,7 @@ resource "aws_glue_crawler" "raw_events" {
   schedule = null
 
   s3_target {
-    path = "s3://${aws_s3_bucket.raw_events.bucket}/events/"
+    path       = "s3://${aws_s3_bucket.raw_events.bucket}/events/"
     exclusions = ["**/_temporary/**", "**/.temporary/**"]
   }
 
@@ -60,7 +60,7 @@ resource "aws_glue_crawler" "batch_sessions" {
   schedule = null
 
   s3_target {
-    path = "s3://${aws_s3_bucket.corrected_sessions.bucket}/sessions/"
+    path       = "s3://${aws_s3_bucket.corrected_sessions.bucket}/sessions/"
     exclusions = ["**/_temporary/**", "**/.temporary/**"]
   }
 

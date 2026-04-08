@@ -85,7 +85,7 @@ resource "aws_iam_role_policy" "lambda" {
 
 resource "aws_cloudwatch_log_group" "lambda" {
   name              = "/aws/lambda/${local.function_name}"
-  retention_in_days = 7  # Keep logs 7 days in dev (cost control)
+  retention_in_days = 7 # Keep logs 7 days in dev (cost control)
 }
 
 # ---------------------------------------------------------------------------

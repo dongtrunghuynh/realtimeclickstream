@@ -21,7 +21,7 @@ locals {
 
 resource "aws_s3_bucket" "raw_events" {
   bucket        = local.raw_bucket_name
-  force_destroy = var.env == "dev" ? true : false  # Allow destroy in dev only
+  force_destroy = var.env == "dev" ? true : false # Allow destroy in dev only
 
   tags = { Name = local.raw_bucket_name, Layer = "raw", Env = var.env }
 }

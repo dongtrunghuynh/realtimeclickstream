@@ -26,11 +26,11 @@ resource "aws_cloudwatch_dashboard" "main" {
 
       # ── Row 1 title ───────────────────────────────────────────────────────
       {
-        type   = "text"
-        x      = 0
-        y      = 0
-        width  = 24
-        height = 1
+        type       = "text"
+        x          = 0
+        y          = 0
+        width      = 24
+        height     = 1
         properties = { markdown = "## Lambda Sessionizer" }
       },
 
@@ -60,10 +60,10 @@ resource "aws_cloudwatch_dashboard" "main" {
         width  = 6
         height = 6
         properties = {
-          title   = "Errors"
-          region  = var.aws_region
+          title  = "Errors"
+          region = var.aws_region
           metrics = [
-            ["AWS/Lambda", "Errors",    "FunctionName", local.lambda_fn, { stat = "Sum", color = "#d62728" }],
+            ["AWS/Lambda", "Errors", "FunctionName", local.lambda_fn, { stat = "Sum", color = "#d62728" }],
             ["AWS/Lambda", "Throttles", "FunctionName", local.lambda_fn, { stat = "Sum", color = "#ff7f0e" }],
           ]
           view    = "timeSeries"
@@ -80,8 +80,8 @@ resource "aws_cloudwatch_dashboard" "main" {
         width  = 6
         height = 6
         properties = {
-          title   = "Duration (ms)"
-          region  = var.aws_region
+          title  = "Duration (ms)"
+          region = var.aws_region
           metrics = [
             ["AWS/Lambda", "Duration", "FunctionName", local.lambda_fn, { stat = "p50", label = "p50" }],
             ["AWS/Lambda", "Duration", "FunctionName", local.lambda_fn, { stat = "p99", label = "p99", color = "#d62728" }],
@@ -111,11 +111,11 @@ resource "aws_cloudwatch_dashboard" "main" {
 
       # ── Row 2 title ───────────────────────────────────────────────────────
       {
-        type   = "text"
-        x      = 0
-        y      = 7
-        width  = 24
-        height = 1
+        type       = "text"
+        x          = 0
+        y          = 7
+        width      = 24
+        height     = 1
         properties = { markdown = "## Kinesis Data Stream — Iterator Age is the key latency metric" }
       },
 
@@ -144,8 +144,8 @@ resource "aws_cloudwatch_dashboard" "main" {
         width  = 8
         height = 6
         properties = {
-          title   = "GetRecords.IteratorAgeMilliseconds (Lambda lag)"
-          region  = var.aws_region
+          title  = "GetRecords.IteratorAgeMilliseconds (Lambda lag)"
+          region = var.aws_region
           metrics = [
             ["AWS/Kinesis", "GetRecords.IteratorAgeMilliseconds", "StreamName", local.kinesis_stream, { stat = "Maximum", color = "#d62728", label = "Max lag (ms)" }],
             ["AWS/Kinesis", "GetRecords.IteratorAgeMilliseconds", "StreamName", local.kinesis_stream, { stat = "Average", label = "Avg lag (ms)" }],
@@ -178,11 +178,11 @@ resource "aws_cloudwatch_dashboard" "main" {
 
       # ── Row 3 title ───────────────────────────────────────────────────────
       {
-        type   = "text"
-        x      = 0
-        y      = 14
-        width  = 24
-        height = 1
+        type       = "text"
+        x          = 0
+        y          = 14
+        width      = 24
+        height     = 1
         properties = { markdown = "## DynamoDB — Session State (Speed Layer)" }
       },
 
@@ -194,10 +194,10 @@ resource "aws_cloudwatch_dashboard" "main" {
         width  = 8
         height = 6
         properties = {
-          title   = "Write Latency (ms)"
-          region  = var.aws_region
+          title  = "Write Latency (ms)"
+          region = var.aws_region
           metrics = [
-            ["AWS/DynamoDB", "SuccessfulRequestLatency", "TableName", local.dynamodb_table, "Operation", "PutItem",    { stat = "p99", label = "PutItem p99" }],
+            ["AWS/DynamoDB", "SuccessfulRequestLatency", "TableName", local.dynamodb_table, "Operation", "PutItem", { stat = "p99", label = "PutItem p99" }],
             ["AWS/DynamoDB", "SuccessfulRequestLatency", "TableName", local.dynamodb_table, "Operation", "UpdateItem", { stat = "p99", label = "UpdateItem p99" }],
           ]
           view    = "timeSeries"
@@ -214,8 +214,8 @@ resource "aws_cloudwatch_dashboard" "main" {
         width  = 8
         height = 6
         properties = {
-          title   = "Throttled Requests"
-          region  = var.aws_region
+          title  = "Throttled Requests"
+          region = var.aws_region
           metrics = [
             ["AWS/DynamoDB", "ThrottledRequests", "TableName", local.dynamodb_table, "Operation", "PutItem", { stat = "Sum", color = "#d62728" }],
             ["AWS/DynamoDB", "ThrottledRequests", "TableName", local.dynamodb_table, "Operation", "GetItem", { stat = "Sum", color = "#ff7f0e" }],
@@ -245,11 +245,11 @@ resource "aws_cloudwatch_dashboard" "main" {
 
       # ── Row 4 title ───────────────────────────────────────────────────────
       {
-        type   = "text"
-        x      = 0
-        y      = 21
-        width  = 24
-        height = 1
+        type       = "text"
+        x          = 0
+        y          = 21
+        width      = 24
+        height     = 1
         properties = { markdown = "## Simulator — Custom Metrics (published by src/event_simulator/metrics.py)" }
       },
 
