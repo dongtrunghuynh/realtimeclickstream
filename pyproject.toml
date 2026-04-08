@@ -48,6 +48,8 @@ ignore  = ["E501", "B008"]
 omit = [
     "src/spark/*",
     "src/dashboard/*",
+    "src/event_simulator/simulator.py",
+    "src/event_simulator/config.py",
 ]
 
 [tool.mypy]
