@@ -36,7 +36,7 @@ aws sts get-caller-identity   # Should return your account ID
 ```bash
 gh auth login
 git clone <your-repo>
-cd clickstream-pipeline
+cd realtimeclickstream
 pip install -r requirements.txt
 ```
 

@@ -157,7 +157,7 @@ git diff origin/main..HEAD --stat
 
 ```bash
 # Run before every push
-cd clickstream-pipeline
+cd realtimeclickstream
 
 # 1. Lint Python
 pip install ruff

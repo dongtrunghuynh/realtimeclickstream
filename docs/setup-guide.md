@@ -107,13 +107,13 @@ gh auth login
 # Follow prompts — choose HTTPS, paste your GitHub token
 
 # Create a new GitHub repository
-gh repo create clickstream-pipeline \
+gh repo create realtimeclickstream \
     --private \
     --description "Real-time clickstream analytics — Lambda Architecture on AWS"
 
 # Clone it
-git clone https://github.com/YOUR_USERNAME/clickstream-pipeline
-cd clickstream-pipeline
+git clone https://github.com/YOUR_USERNAME/realtimeclickstream
+cd realtimeclickstream
 ```
 
 ---

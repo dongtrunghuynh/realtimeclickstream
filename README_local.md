@@ -52,7 +52,7 @@ speed and batch layers.
 # Prerequisites: AWS CLI configured, Terraform ≥ 1.7, Python ≥ 3.11, Java 11
 
 git clone <repo>
-cd clickstream-pipeline
+cd realtimeclickstream
 pip install -r requirements.txt
 
 cd terraform
