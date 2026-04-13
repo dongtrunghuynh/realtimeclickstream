@@ -65,16 +65,53 @@ resource "aws_s3_bucket_public_access_block" "athena" {
   restrict_public_buckets = true
 }
 
-# Lifecycle — delete raw events after 7 days in dev (cost control)
+# Lifecycle — expire raw events (7 days dev, 30 days prod)
 resource "aws_s3_bucket_lifecycle_configuration" "raw_lifecycle" {
   bucket = aws_s3_bucket.raw_events.id
 
   rule {
-    id     = "expire-dev-data"
-    status = var.env == "dev" ? "Enabled" : "Disabled"
+    id     = "expire-raw-events"
+    status = "Enabled"
 
     expiration {
-      days = 7
+      days = var.env == "dev" ? 7 : 30
+    }
+
+    # Move to Glacier after 14 days in prod before deleting
+    dynamic "transition" {
+      for_each = var.env == "prod" ? [1] : []
+      content {
+        days          = 14
+        storage_class = "GLACIER"
+      }
+    }
+  }
+}
+
+# Lifecycle — expire corrected sessions (30 days dev, 90 days prod)
+resource "aws_s3_bucket_lifecycle_configuration" "corrected_lifecycle" {
+  bucket = aws_s3_bucket.corrected_sessions.id
+
+  rule {
+    id     = "expire-corrected-sessions"
+    status = "Enabled"
+
+    expiration {
+      days = var.env == "dev" ? 30 : 90
+    }
+  }
+}
+
+# Lifecycle — expire Athena query results after 3 days (both envs)
+resource "aws_s3_bucket_lifecycle_configuration" "athena_lifecycle" {
+  bucket = aws_s3_bucket.athena_results.id
+
+  rule {
+    id     = "expire-query-results"
+    status = "Enabled"
+
+    expiration {
+      days = 3
     }
   }
 }
